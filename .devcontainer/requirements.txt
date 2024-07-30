@@ -1,0 +1,11 @@
+jupyter
+matplotlib
+networkx
+numpy
+pandas
+pillow
+scipy
+seaborn
+tensorflow
+psutil
+py-spy
