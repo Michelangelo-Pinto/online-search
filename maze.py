@@ -3,9 +3,10 @@ import matplotlib.pyplot as plt
 import random
 from typing import Union,Any
 from datetime import datetime
+import time
 
 from  LRTAStarAgent import *
-from problems import MazeProblem
+from problems import Maze2DProblem
 
 def create_grid_graph(rows, cols) -> nx.Graph: 
     G:nx.Graph = nx.grid_2d_graph(rows, cols)
@@ -93,19 +94,21 @@ def draw_maze(maze, rows, cols):
 ###################################
 
 # maze settings
-rows, cols = 10, 10
+rows, cols = 700, 700   # <- change this to scale the problem
 
 G = create_grid_graph(rows, cols)
 
-maze = create_maze(G,True)
-draw_maze(maze,rows,cols)
-# Disegno del labirinto
-#draw_maze(maze, rows, cols)
+start_time = time.time()
+maze = create_maze(G)
+print(f"time to create maze: {time.time() - start_time} seconds")
+time.sleep(3)
+
+#draw_maze(maze,rows,cols)
 
 
 initial_position=(0,0)
 epoch=0
-goal_position=(8,1)
+goal_position=(500,500)
 
 
 #################################################
@@ -115,16 +118,23 @@ goal_position=(8,1)
 #state_traj.add_node("x",position=goal_position)
 #################################################
 
-mazeProblem=MazeProblem(initial_position,goal_position,maze)
-lrta_agent = LRTAStarAgent(mazeProblem)
+mazeProblem=Maze2DProblem(initial_position,goal_position,maze)
+
+lrta_agent = MazeLRTAStarAgent(mazeProblem)
 
 currentState=initial_position
 
+start_time = time.time()
 while True:
 #    lrta_agent = LRTAStarAgent(mazeProblem)
-    action=lrta_agent.run(currentState)
+    action=lrta_agent(currentState)
     if action == None: break
     nextState=action()
     #if nextState:
     #    state_traj.add_edge(currentState,nextState)
     currentState=nextState
+end_time=time.time()
+
+execution_time = end_time - start_time
+
+print(f"Il tempo di esecuzione della funzione è: {execution_time} secondi")

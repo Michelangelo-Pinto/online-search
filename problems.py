@@ -101,7 +101,7 @@ class OnlineSearchProblem(Problem):
         return False
 
 
-class MazeProblem(OnlineSearchProblem):
+class Maze2DProblem(OnlineSearchProblem):
     
     """
     A problem which is solved by an agent executing
@@ -117,11 +117,12 @@ class MazeProblem(OnlineSearchProblem):
             return position
         
         neighbors_world_list = list(self.graph.neighbors(state))
-        actions=set()
+        actions=list()
         for neigh in neighbors_world_list:
-            action=lambda: goTo(neigh)
+            action = (lambda n=neigh: goTo(n)) 
+            #action=lambda: goTo(neigh)  wrong
             action.cost=self.graph[state][neigh]['weight']
-            actions.add(action)
+            actions.append(action)
         
         return actions
         
@@ -130,13 +131,11 @@ class MazeProblem(OnlineSearchProblem):
 
     def h(self, state):
         """Returns least possible cost to reach a goal for the given state."""
-        #return nx.dijkstra_path_length(self.world, position, self.goal_state['position'], weight='weight')
-        #return nx.shortest_path_length(self.graph, state, self.goal)
         return abs(state[0] - self.goal[0]) + abs(state[1] - self.goal[1])
-
+        
     def c(self, s, a, s1):
         """Returns a cost estimate for an agent to move from state 's' to state 's1'.
-                    we are assuming it's the actual cost"""
+                    we are assuming it's the actual cost - edge weight"""
         return self.graph[s][s1]['weight']
 
     def update_state(self, percept):
