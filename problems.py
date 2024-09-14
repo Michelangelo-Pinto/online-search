@@ -108,11 +108,16 @@ class Maze2DProblem(OnlineSearchProblem):
     actions, rather than by just computation.
     Carried in a deterministic and a fully observable environment."""
 
-    def __init__(self, initial_state, goal_state,world: nx.Graph):
+    def __init__(self, initial_state, goal_state, world: nx.Graph):
         super().__init__(initial_state, goal_state,world)
 
     def actions(self, state):
-    
+        """Return the actions that can be executed in the given
+        state. The result would typically be a list, but if there are
+        many actions, consider yielding them one at a time in an`
+        iterator, rather than building them all at once."""
+
+        """The most simple action is to move to a neighbor node"""
         def goTo(position):
             return position
         
@@ -121,7 +126,7 @@ class Maze2DProblem(OnlineSearchProblem):
         for neigh in neighbors_world_list:
             action = (lambda n=neigh: goTo(n)) 
             #action=lambda: goTo(neigh)  wrong
-            action.cost=self.graph[state][neigh]['weight']
+            #action.cost=self.graph[state][neigh]['weight']
             actions.append(action)
         
         return actions
@@ -131,6 +136,7 @@ class Maze2DProblem(OnlineSearchProblem):
 
     def h(self, state):
         """Returns least possible cost to reach a goal for the given state."""
+        """Returns Manhattan distance to goal"""
         return abs(state[0] - self.goal[0]) + abs(state[1] - self.goal[1])
         
     def c(self, s, a, s1):
@@ -146,3 +152,99 @@ class Maze2DProblem(OnlineSearchProblem):
             return True
         return False
 
+    def agent_cost_evaluation_function(self,problem, s, a, s1, H):
+        """
+        Computes the evaluation function (f-value) for an agent in a search problem.
+
+        The function returns the cost to move from the current state 's' to the next state 's1', 
+        plus an estimated cost to reach the goal from 's1'. It leverages an agent-specific 
+        heuristic dictionary 'H', which is dynamically updated with new heuristic values as the agent explores.
+
+        If 's1' is not already in 'H', the function falls back to using the problem's heuristic function 'h' 
+        for estimating the remaining cost to the goal.
+
+        Parameters:
+        - problem: The problem instance with cost and heuristic functions.
+        - s: Current state.
+        - a: Action taken from state 's'.
+        - s1: Next state after taking action 'a'.
+        - H: The agent's heuristic dictionary, which stores heuristic values for explored states.
+
+        Returns:
+        - The f-value, which is the sum of the path cost (g-value) and the heuristic (h-value).
+        """
+        if s1 is None or s is None:
+            raise ValueError("State s and s1 cannot be None.")
+            #return problem.h(s)
+        else:
+            if H is not None and H.get(s1):
+                return problem.c(s, a, s1) + H[s1]
+            else:
+                return problem.c(s, a, s1) + problem.h(s1)
+
+
+
+
+
+class Maze2DProblemObstacles(Maze2DProblem):
+    """
+    A problem which is solved by an agent executing
+    actions, rather than by just computation.
+    Carried in a deterministic and a fully observable environment."""
+    
+    def __init__(self, initial_state, goal_state, world: nx.Graph, obstacles=None):
+        super().__init__(initial_state, goal_state, world)
+        self.obstacles = obstacles or set()  # Set di ostacoli
+        self.ideal_tree = {}  # Per FRIT, l'albero ideale
+    
+    def actions(self, state):
+        """Return the actions that can be executed in the given
+        state. The result would typically be a list, but if there are
+        many actions, consider yielding them one at a time in an iterator, rather than building them all at once."""
+        def goTo(position):
+            return position
+        
+        # Escludi gli ostacoli dalle azioni disponibili
+        neighbors_world_list = [n for n in self.graph.neighbors(state) if n not in self.obstacles]
+        actions = []
+        for neigh in neighbors_world_list:
+            action = (lambda n=neigh: goTo(n)) 
+            action.cost = self.graph[state][neigh]['weight']
+            actions.append(action)
+        
+        return actions
+    
+    def output(self, state, action):
+        return action()
+
+    def h(self, state):
+        """Returns least possible cost to reach a goal for the given state."""
+        return abs(state[0] - self.goal[0]) + abs(state[1] - self.goal[1])
+        
+    def c(self, s, a, s1):
+        """Returns a cost estimate for an agent to move from state 's' to state 's1'.
+        Assumes the actual cost is the edge weight."""
+        return self.graph[s][s1]['weight']
+
+    def update_state(self, percept):
+        """This method can be used to update the problem state based on the percept (e.g., newly discovered obstacles)."""
+        raise NotImplementedError
+
+    def goal_test(self, state):
+        return state == self.goal
+    
+    def observe_environment(self, state):
+        """Osserva l'ambiente circostante e restituisce gli ostacoli visibili."""
+        # Potrebbe essere implementato come un controllo degli stati vicini per ostacoli
+        observed_obstacles = {neighbor for neighbor in self.graph.neighbors(state) if neighbor in self.obstacles}
+        return observed_obstacles
+    
+    def get_all_states(self):
+        """Restituisce tutti i nodi (stati) del grafo del labirinto."""
+        return list(self.graph.nodes)
+
+    # Metodo per aggiornare l'albero ideale in FRIT
+    def update_ideal_tree(self, state, tree):
+        """Aggiorna l'albero ideale (self.ideal_tree) con nuove informazioni."""
+        # Potresti aggiungere logica qui per aggiornare il sottoalbero o l'intero albero.
+        self.ideal_tree[state] = tree
