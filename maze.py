@@ -53,6 +53,47 @@ def create_maze(G, randWeight: bool = False, randfrom=1, randto=20):
     return maze
 
 
+def build_superspanning_grid(rows, cols):
+    """
+    Costruisce un grafo superspanning per una griglia di dimensioni rows x cols
+    dove ogni nodo è connesso ai suoi vicini ortogonali e diagonali con peso fisso 1.
+    
+    rows: Numero di righe della griglia.
+    cols: Numero di colonne della griglia.
+    """
+    G_M = nx.Graph()
+
+    # Aggiungi i nodi al grafo
+    for r in range(rows):
+        for c in range(cols):
+            G_M.add_node((r, c))
+
+    # Aggiungi archi verso i vicini ortogonali e diagonali con peso 1
+    for r in range(rows):
+        for c in range(cols):
+            current_node = (r, c)
+            
+            # Lista dei possibili spostamenti (ortogonali e diagonali)
+            # neighbors = [
+            #     (r-1, c-1), (r-1, c), (r-1, c+1),  # Sopra (diagonali e ortogonali)
+            #     (r, c-1),            (r, c+1),     # Sinistra e destra
+            #     (r+1, c-1), (r+1, c), (r+1, c+1)   # Sotto (diagonali e ortogonali)
+            # ]
+            # Lista dei possibili spostamenti (solo ortogonali)
+            neighbors = [
+                (r-1, c),  # Sopra
+                (r+1, c),  # Sotto
+                (r, c-1),  # Sinistra
+                (r, c+1)   # Destra
+            ]
+            
+            # Aggiungi archi se i vicini sono validi
+            for neighbor in neighbors:
+                nr, nc = neighbor
+                if 0 <= nr < rows and 0 <= nc < cols:
+                    G_M.add_edge(current_node, neighbor, weight=1)  # Peso fisso 1
+
+    return G_M
 
 def create_maze_with_obstacles(G, start, goal, randWeight: bool = False, randfrom=1, randto=20, obstacle_prob=0.1):
     """
@@ -86,55 +127,24 @@ def create_maze_with_obstacles(G, start, goal, randWeight: bool = False, randfro
             continue
 
         if random.random() < obstacle_prob:
-            # Rimuovi solo se non rompe la connettività tra start e goal
+            # Crea una copia del grafo senza l'ostacolo e prova a rimuovere l'arco
             maze_copy = maze.copy()
+            # Rimuovi tutte le connessioni in cui è coinvolto il nodo come ostacolo (non il nodo stesso)
+            neighbors = list(maze_copy.neighbors(node))
             maze_copy.remove_node(node)
+            path_exists = nx.has_path(maze_copy, start, goal)
 
-            # Verifica se il nodo può essere rimosso mantenendo la connettività tra start e goal
-            if nx.has_path(maze_copy, start, goal):
-                maze = maze_copy
+            if path_exists:
                 obstacles.add(node)
 
     return maze, obstacles
 
 
-def draw_maze(maze, rows, cols):
-    # Define the position of nodes in the plot
-    # Positions are given by a dictionary where keys are nodes and values are tuples (y, -x)
-    # This layout visually arranges nodes in a grid format
-    pos = {(x, y): (y, -x) for x, y in maze.nodes()}
-    
-    # Draw the maze without labels
-    # Node size is set to 10, node color is black, and edge color is gray
-    nx.draw(maze, pos=pos, with_labels=False, node_size=10, node_color="black", edge_color="gray")
-    
-    # Add labels to the nodes
-    # Labels are created as a dictionary where keys are nodes and values are the string representation of nodes
-    labels = {node: f"{node}" for node in maze.nodes()}
-    nx.draw_networkx_labels(maze, pos, labels, font_size=8, font_color="red")
-    
-    # Add edge weight labels
-    # Edge labels are created as a dictionary where keys are tuples (u, v) representing edges and values are the weights
-    edge_labels = {(u, v): d['weight'] for u, v, d in maze.edges(data=True)}
-    nx.draw_networkx_edge_labels(maze, pos, edge_labels=edge_labels, font_size=8, font_color="blue")
-    
-    # Invert the y-axis for correct visualization: origin in bottom-left
-    plt.gca().invert_yaxis()
-    
-    
-    now = datetime.now()
-    timestamp = now.strftime("%Y%m%d_%H%M%S")
-    
-    # Save the plotted graph as a PNG image
-    filename = f'graph_{timestamp}.png'
-    plt.savefig(filename, format='png')
-        
-    # Show the plotted graph
-    #plt.show()    
+
     
 
 
-def draw_large_maze(maze, edge_colors='green'):
+def draw_large_maze(maze, folder="mazes/xxx", edge_colors='green'):
     """
     Disegna un maze con parametri di disegno dinamici in base alla grandezza del grafo.
     """
@@ -176,62 +186,11 @@ def draw_large_maze(maze, edge_colors='green'):
     # Salva il grafico
     now = datetime.now()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
-    filename = f'dynamic_maze_{timestamp}.png'
+    filename = folder+f'/maze_{timestamp}.png'
     plt.savefig(filename, format='png', bbox_inches='tight', dpi=300)
 
 
-def draw_dynamic_maze_with_obstacles(maze, obstacles, edge_colors='green'):
-    """
-    Disegna un maze con ostacoli e parametri di disegno dinamici in base alla grandezza del grafo.
-    """
-    # Ottieni il numero totale di nodi nel grafo
-    num_nodes = len(maze.nodes())
-    
-    # Calcola i parametri dinamici in base al numero di nodi
-    scale_factor = max(1, num_nodes // 100)  # Fattore per gestire la densità del grafo
-    node_size = max(5, 30 // scale_factor)  # Dimensione dei nodi
-    font_size = max(4, 12 // scale_factor)  # Dimensione del font per i nodi
-    edge_font_size = max(3, 10 // scale_factor)  # Dimensione del font per i pesi degli archi
-    separation_factor = 3 + (scale_factor * 0.5)  # Fattore di separazione tra i nodi
-    
-    # Crea un layout a griglia con maggiore separazione
-    pos = {(x, y): (y * separation_factor, -x * separation_factor) for x, y in maze.nodes()}
 
-    # Filtra gli ostacoli che esistono nel grafo
-    obstacles_in_maze = [node for node in obstacles if node in maze.nodes]
-
-    # Genera i colori per gli archi, se non forniti
-    if edge_colors is None:
-        edge_colors = ['gray' for _ in maze.edges()]
-
-    # Imposta la risoluzione dell'immagine molto alta
-    plt.figure(figsize=(30, 30), dpi=300)  # Risoluzione alta per zoom
-    
-    # Disegna il maze con i colori degli archi
-    nx.draw(maze, pos=pos, with_labels=False, node_size=node_size, node_color="black", 
-            edge_color=edge_colors, width=1.5)
-
-    # Disegna gli ostacoli in rosso
-    nx.draw_networkx_nodes(maze, pos, nodelist=obstacles_in_maze, node_color="red", node_size=node_size * 2)
-    
-    # Aggiungi le etichette dei nodi (stati)
-    labels = {node: f"{node}" for node in maze.nodes()}
-    nx.draw_networkx_labels(maze, pos, labels, font_size=font_size, font_color="red")
-    
-    # Aggiungi le etichette degli archi (pesi)
-    edge_labels = {(u, v): d['weight'] for u, v, d in maze.edges(data=True)}
-    nx.draw_networkx_edge_labels(maze, pos, edge_labels=edge_labels, font_size=edge_font_size, font_color="blue")
-
-    # Inverti l'asse y per una visualizzazione corretta
-    plt.gca().invert_yaxis()
-
-    # Salva il grafico con altissima risoluzione
-    now = datetime.now()
-    timestamp = now.strftime("%Y%m%d_%H%M%S")
-    filename = f'dynamic_maze_with_obstacles_{timestamp}.png'
-    plt.savefig(filename, format='png', bbox_inches='tight', dpi=300)
-
-    
 def draw_large_maze_with_obstacles(maze, obstacles):
     """
     Disegna il maze con ostacoli per grafi più grandi, usando un layout `spring_layout` e controllando le dimensioni.
